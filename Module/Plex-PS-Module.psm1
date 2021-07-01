@@ -118,7 +118,7 @@ function Get-PlexTVServerList
 	$headers.Add("X-Plex-Product", "Test script") | Out-Null
 	$headers.Add("X-Plex-Version", "V1") | Out-Null
 	[xml]$res = Invoke-RestMethod -Headers $headers -Method GET -Uri $url
-	$Servers = $res.MediaContainer.Server | select name, localAddresses, port
+	$Servers = $res.MediaContainer.Server | Select-Object name, localAddresses, port
 	$array = @()
 	foreach ($Server in $Servers)
 	{
@@ -219,11 +219,58 @@ function Get-PlexRefreshEntireLibrary ($hostname, $Token, $Section)
 #>
 function Get-PlexListLibraryContent ($hostname, $Token, $LibraryName)
 {
+	$Return = @()
 	$Section = Get-PlexSectionKey -hostname $hostname -Token $Token -LibraryName $LibraryName
+	$type = (Get-PlexLibrarieSections -hostname $PlexServer -Token $Token | Where-Object title -eq $LibraryName).type
 	$URI = "http://$hostname/library/sections/$Section/all?X-Plex-Token=$Token"
 	$Invoke = Invoke-WebRequest -Uri $URI
 	$Xmlfile = [XML]$Invoke.content
-	$Xmlfile.MediaContainer.Video
+	if($type -eq "movie"){$Return += $Xmlfile.MediaContainer.Video}
+	if($type -eq "show")
+    {
+        foreach($Directory in $Xmlfile.MediaContainer.Directory)
+        {
+            $URI = "http://$PlexServer$($Directory.key)/all?X-Plex-Token=$Token"
+            $Invoke = Invoke-WebRequest -Uri $URI
+            $Xmlfile = [XML]$Invoke.content
+            $seasons = $Xmlfile.MediaContainer.Directory
+            foreach($season in $seasons)
+            {
+                $URI = "http://$PlexServer$($season.key)/all?X-Plex-Token=$Token"
+                $Invoke = Invoke-WebRequest -Uri $URI
+                $Xmlfile = [XML]$Invoke.content
+                $videos = $Xmlfile.MediaContainer.Video
+                foreach($video in $videos)
+                {
+                    $Return += [pscustomobject]@{
+						ratingKey = $video.ratingKey
+						key = $video.key
+						guid = $video.guid
+						studio = $video.studio
+						type = $video.type
+						show = $Directory.title
+						season = $video.parentIndex
+						episode = $video.index
+						title = $video.title
+						contentRating = $video.contentRating
+						summary = $video.summary
+						year = $video.year
+						thumb = $video.thumb
+						art = $video.art
+						duration = $video.duration
+						originallyAvailableAt = $video.originallyAvailableAt
+						addedAt = $video.addedAt
+						updatedAt = $video.updatedAt
+						Media = $video.Media
+						Writer = $video.Writer
+						Genre = $Directory.Genre
+						Role = $Directory.Role
+                    }
+                }
+            }
+        }
+    }
+	$Return
 }
 
 function Get-PlexVideoMetadata ($hostname, $Token, $RatingKey)
