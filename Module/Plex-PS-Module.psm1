@@ -221,7 +221,7 @@ function Get-PlexListLibraryContent ($hostname, $Token, $LibraryName)
 {
 	$Return = @()
 	$Section = Get-PlexSectionKey -hostname $hostname -Token $Token -LibraryName $LibraryName
-	$type = (Get-PlexLibrarieSections -hostname $PlexServer -Token $Token | Where-Object title -eq $LibraryName).type
+	$type = (Get-PlexLibrarieSections -hostname $hostname -Token $Token | Where-Object title -eq $LibraryName).type
 	$URI = "http://$hostname/library/sections/$Section/all?X-Plex-Token=$Token"
 	$Invoke = Invoke-WebRequest -Uri $URI
 	$Xmlfile = [XML]$Invoke.content
@@ -230,13 +230,13 @@ function Get-PlexListLibraryContent ($hostname, $Token, $LibraryName)
     {
         foreach($Directory in $Xmlfile.MediaContainer.Directory)
         {
-            $URI = "http://$PlexServer$($Directory.key)/all?X-Plex-Token=$Token"
+            $URI = "http://$hostname$($Directory.key)/all?X-Plex-Token=$Token"
             $Invoke = Invoke-WebRequest -Uri $URI
             $Xmlfile = [XML]$Invoke.content
             $seasons = $Xmlfile.MediaContainer.Directory
             foreach($season in $seasons)
             {
-                $URI = "http://$PlexServer$($season.key)/all?X-Plex-Token=$Token"
+                $URI = "http://$hostname$($season.key)/all?X-Plex-Token=$Token"
                 $Invoke = Invoke-WebRequest -Uri $URI
                 $Xmlfile = [XML]$Invoke.content
                 $videos = $Xmlfile.MediaContainer.Video
